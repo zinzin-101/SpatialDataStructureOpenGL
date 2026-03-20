@@ -1,0 +1,11 @@
+Model Information:
+* title:	High Poly PBR Revolver/Gun
+* source:	https://sketchfab.com/3d-models/high-poly-pbr-revolvergun-b9fc91252ff54e79a1743a0b16ea211c
+* author:	artssionate (https://sketchfab.com/artssionate)
+
+Model License:
+* license type:	CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)
+* requirements:	Author must be credited. No commercial use.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "High Poly PBR Revolver/Gun" (https://sketchfab.com/3d-models/high-poly-pbr-revolvergun-b9fc91252ff54e79a1743a0b16ea211c) by artssionate (https://sketchfab.com/artssionate) licensed under CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)

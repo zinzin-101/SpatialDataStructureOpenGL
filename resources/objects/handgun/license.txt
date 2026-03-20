@@ -1,0 +1,11 @@
+Model Information:
+* title:	MP40 "Factory new" Gun
+* source:	https://sketchfab.com/3d-models/mp40-factory-new-gun-8ef52df9203f45de9caa258a9623621a
+* author:	avhatar (https://sketchfab.com/avhatar)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "MP40 "Factory new" Gun" (https://sketchfab.com/3d-models/mp40-factory-new-gun-8ef52df9203f45de9caa258a9623621a) by avhatar (https://sketchfab.com/avhatar) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

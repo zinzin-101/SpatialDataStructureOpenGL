@@ -1,0 +1,243 @@
+#pragma once
+
+#ifndef MESH_H
+#define MESH_H
+
+#include <glad/glad.h> // holds all OpenGL type declarations
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <shader.h>
+
+#include <string>
+#include <vector>
+using namespace std;
+
+#define MAX_BONE_INFLUENCE 4
+
+struct Vertex {
+    // position
+    glm::vec3 Position;
+    // normal
+    glm::vec3 Normal;
+    // texCoords
+    glm::vec2 TexCoords;
+    // tangent
+    glm::vec3 Tangent;
+    // bitangent
+    glm::vec3 Bitangent;
+    //bone indexes which will influence this vertex
+    int m_BoneIDs[MAX_BONE_INFLUENCE];
+    //weights from each bone
+    float m_Weights[MAX_BONE_INFLUENCE];
+};
+
+struct Texture {
+    unsigned int id;
+    string type;
+    string path;
+};
+
+class PBRMesh {
+public:
+    // mesh Data
+    vector<Vertex>       vertices;
+    vector<unsigned int> indices;
+    vector<Texture>      textures;
+    unsigned int VAO;
+
+    static int maxTextureNumber; // for debug purposes
+
+    static unsigned int defaultAlbedo;
+    static unsigned int defaultNormal;
+    static unsigned int defaultMetallic;
+    static unsigned int defaultRoughness;
+    static unsigned int defaultAO;
+
+    // constructor
+    PBRMesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures)
+    {
+        if (defaultAlbedo == 0) defaultAlbedo = CreateDefaultTexture(255, 255, 255);
+        if (defaultNormal == 0) defaultNormal = CreateDefaultTexture(128, 128, 255);
+        if (defaultMetallic == 0) defaultMetallic = CreateDefaultTexture(0, 0, 0);
+        if (defaultRoughness == 0) defaultRoughness = CreateDefaultTexture(255, 255, 255);
+        if (defaultAO == 0) defaultAO = CreateDefaultTexture(255, 255, 255);
+
+        
+        this->vertices = vertices;
+        this->indices = indices;
+        this->textures = textures;
+
+        // now that we have all the required data, set the vertex buffers and its attribute pointers.
+        setupMesh();
+    }
+
+    // render the mesh
+    void Draw(Shader& shader)
+    {
+        // bind appropriate textures
+        unsigned int diffuseNr = 1;
+        unsigned int specularNr = 1;
+        unsigned int normalNr = 1;
+        unsigned int heightNr = 1;
+        // PBR
+        unsigned int diffuseNrPBR = 1;
+        unsigned int normalNrPBR = 1;
+        unsigned int metallicNrPBR = 1;
+        unsigned int roughnessNrPBR = 1;
+        unsigned int aoNrPBR = 1;
+
+        unsigned int startingTex = GL_TEXTURE0;
+
+        // reset all textures
+        for (unsigned int i = 0; i < 5; i++) {
+            unsigned int defaultTex[] = {
+                defaultAlbedo,
+                defaultNormal,
+                defaultMetallic,
+                defaultRoughness,
+                defaultAO
+            };
+
+            glActiveTexture(startingTex + i);
+            glBindTexture(GL_TEXTURE_2D, defaultTex[i]);
+        }
+
+        for (unsigned int i = 0; i < textures.size(); i++)
+        {
+            glActiveTexture(startingTex + i);
+            // retrieve texture number (the N in diffuse_textureN)
+            string number;
+            string name = textures[i].type;
+            if (name == "texture_diffuse")
+            {
+                number = std::to_string(diffuseNr++);
+                //std::cout << "rendering diffuse" << std::endl;
+            }
+            else if (name == "texture_specular")
+                number = std::to_string(specularNr++); // transfer unsigned int to string
+            else if (name == "texture_normal")
+            {
+                number = std::to_string(normalNr++); // transfer unsigned int to string
+                //std::cout << "rendering normal" << std::endl;
+            }
+            else if (name == "texture_height")
+                number = std::to_string(heightNr++); // transfer unsigned int to string
+            // PBR
+            else if (name == "texture_PBR_diffuse")
+            {
+                number = std::to_string(diffuseNrPBR++);
+                //std::cout << "rendering pbr diffuse" << std::endl;
+            }
+            else if (name == "texture_PBR_normal")
+            {
+                number = std::to_string(normalNrPBR++);
+                //std::cout << "rendering pbr normal" << std::endl;
+            }
+            else if (name == "texture_PBR_metallic")
+            {
+                number = std::to_string(metallicNrPBR++);
+                //std::cout << "rendering pbr metal" << std::endl;
+            }
+            else if (name == "texture_PBR_roughness")
+            {
+                number = std::to_string(roughnessNrPBR++);
+                //std::cout << "rendering pbr roughness" << std::endl;
+            }
+            else if (name == "texture_PBR_ambient_occlusion")
+                number = std::to_string(aoNrPBR++);
+
+            // now set the sampler to the correct texture unit
+            glUniform1i(glGetUniformLocation(shader.ID, (name + number).c_str()), i);
+            glUniform1i(glGetUniformLocation(shader.ID, "useMR"), (metallicNrPBR != 1 && roughnessNrPBR == 1) ? 1 : 0);
+            // and finally bind the texture
+            glBindTexture(GL_TEXTURE_2D, textures[i].id);
+
+            maxTextureNumber = std::max(maxTextureNumber, std::stoi(number));
+        }
+
+        // draw mesh
+        glBindVertexArray(VAO);
+        glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(indices.size()), GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+
+        // always good practice to set everything back to defaults once configured.
+        glActiveTexture(GL_TEXTURE0);
+    }
+
+private:
+    // render data 
+    unsigned int VBO, EBO;
+
+    // initializes all the buffer objects/arrays
+    void setupMesh()
+    {
+        // create buffers/arrays
+        glGenVertexArrays(1, &VAO);
+        glGenBuffers(1, &VBO);
+        glGenBuffers(1, &EBO);
+
+        glBindVertexArray(VAO);
+        // load data into vertex buffers
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        // A great thing about structs is that their memory layout is sequential for all its items.
+        // The effect is that we can simply pass a pointer to the struct and it translates perfectly to a glm::vec3/2 array which
+        // again translates to 3/2 floats which translates to a byte array.
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);
+
+        // set the vertex attribute pointers
+        // vertex Positions
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+        // vertex normals
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
+        // vertex texture coords
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, TexCoords));
+        // vertex tangent
+        glEnableVertexAttribArray(3);
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Tangent));
+        // vertex bitangent
+        glEnableVertexAttribArray(4);
+        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Bitangent));
+        // ids
+        glEnableVertexAttribArray(5);
+        glVertexAttribIPointer(5, 4, GL_INT, sizeof(Vertex), (void*)offsetof(Vertex, m_BoneIDs));
+
+        // weights
+        glEnableVertexAttribArray(6);
+        glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, m_Weights));
+        glBindVertexArray(0);
+    }
+
+    unsigned int CreateDefaultTexture(unsigned char r, unsigned char g, unsigned char b)
+    {
+        unsigned int tex;
+        unsigned char data[3] = { r, g, b };
+
+        glGenTextures(1, &tex);
+        glBindTexture(GL_TEXTURE_2D, tex);
+
+        glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_RGB,
+            1, 1,
+            0,
+            GL_RGB,
+            GL_UNSIGNED_BYTE,
+            data
+        );
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        return tex;
+    }
+};
+#endif

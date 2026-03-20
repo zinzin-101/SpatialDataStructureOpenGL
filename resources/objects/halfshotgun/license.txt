@@ -1,0 +1,11 @@
+Model Information:
+* title:	Jolly the Shotgun, Low Poly 3d-Coat texture test
+* source:	https://sketchfab.com/3d-models/jolly-the-shotgun-low-poly-3d-coat-texture-test-7cbc0a5c8e35414a8388b5a1b3a5d5c9
+* author:	Csaba Baity (tsabszy) (https://sketchfab.com/tsabszy)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Jolly the Shotgun, Low Poly 3d-Coat texture test" (https://sketchfab.com/3d-models/jolly-the-shotgun-low-poly-3d-coat-texture-test-7cbc0a5c8e35414a8388b5a1b3a5d5c9) by Csaba Baity (tsabszy) (https://sketchfab.com/tsabszy) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

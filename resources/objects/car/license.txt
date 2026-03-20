@@ -1,0 +1,11 @@
+Model Information:
+* title:	LowPoly PBR Car
+* source:	https://sketchfab.com/3d-models/lowpoly-pbr-car-886650afc5e844ffb166a0a6ceb185f6
+* author:	Yo.Ri (https://sketchfab.com/grox777)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "LowPoly PBR Car" (https://sketchfab.com/3d-models/lowpoly-pbr-car-886650afc5e844ffb166a0a6ceb185f6) by Yo.Ri (https://sketchfab.com/grox777) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

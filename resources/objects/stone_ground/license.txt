@@ -1,0 +1,11 @@
+Model Information:
+* title:	Stone Ground Texture (Seamless / 4K PBR)
+* source:	https://sketchfab.com/3d-models/stone-ground-texture-seamless-4k-pbr-2f9a941bc88b491091a6c54b566da4c1
+* author:	Meerschaum Digital (https://sketchfab.com/meerschaumdigital)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Stone Ground Texture (Seamless / 4K PBR)" (https://sketchfab.com/3d-models/stone-ground-texture-seamless-4k-pbr-2f9a941bc88b491091a6c54b566da4c1) by Meerschaum Digital (https://sketchfab.com/meerschaumdigital) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

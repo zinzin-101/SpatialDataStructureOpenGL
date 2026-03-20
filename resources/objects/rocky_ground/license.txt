@@ -1,0 +1,11 @@
+Model Information:
+* title:	Rocky Ground
+* source:	https://sketchfab.com/3d-models/rocky-ground-2de202dfe8014b6cac6ea23ebbbb55ad
+* author:	André Bray (https://sketchfab.com/masterbray)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Rocky Ground" (https://sketchfab.com/3d-models/rocky-ground-2de202dfe8014b6cac6ea23ebbbb55ad) by André Bray (https://sketchfab.com/masterbray) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

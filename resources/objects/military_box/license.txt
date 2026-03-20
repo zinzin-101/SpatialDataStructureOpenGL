@@ -1,0 +1,11 @@
+Model Information:
+* title:	Weapon Crate Low-poly PBR
+* source:	https://sketchfab.com/3d-models/weapon-crate-low-poly-pbr-231f85f0e8244c368cd201e3b4feaf31
+* author:	MaX3Dd (https://sketchfab.com/MaX3Dd)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Weapon Crate Low-poly PBR" (https://sketchfab.com/3d-models/weapon-crate-low-poly-pbr-231f85f0e8244c368cd201e3b4feaf31) by MaX3Dd (https://sketchfab.com/MaX3Dd) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

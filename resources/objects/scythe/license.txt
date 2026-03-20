@@ -1,0 +1,11 @@
+Model Information:
+* title:	Grim reaper weapon
+* source:	https://sketchfab.com/3d-models/grim-reaper-weapon-fa7f0900503d4438aa773e8d5cc9c327
+* author:	Sanjiro77 (https://sketchfab.com/sanjiro77)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Grim reaper weapon" (https://sketchfab.com/3d-models/grim-reaper-weapon-fa7f0900503d4438aa773e8d5cc9c327) by Sanjiro77 (https://sketchfab.com/sanjiro77) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

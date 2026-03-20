@@ -1,0 +1,11 @@
+Model Information:
+* title:	Arcadia Longboard
+* source:	https://sketchfab.com/3d-models/arcadia-longboard-f14f4545c27b49cfab16965c8509b79f
+* author:	AntijnvanderGun (https://sketchfab.com/AntijnvanderGun)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Arcadia Longboard" (https://sketchfab.com/3d-models/arcadia-longboard-f14f4545c27b49cfab16965c8509b79f) by AntijnvanderGun (https://sketchfab.com/AntijnvanderGun) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

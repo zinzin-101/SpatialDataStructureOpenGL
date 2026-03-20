@@ -1,0 +1,11 @@
+Model Information:
+* title:	Katanas
+* source:	https://sketchfab.com/3d-models/katanas-faf3427097d84f69851ee507a2f8eff9
+* author:	Andrewlxlxl99 (https://sketchfab.com/Andrewlxlxl99)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Katanas" (https://sketchfab.com/3d-models/katanas-faf3427097d84f69851ee507a2f8eff9) by Andrewlxlxl99 (https://sketchfab.com/Andrewlxlxl99) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
