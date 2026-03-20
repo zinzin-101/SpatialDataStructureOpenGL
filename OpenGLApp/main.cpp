@@ -93,7 +93,7 @@ int main()
     // build and compile shaders
     // -------------------------
     //Shader ourShader("1.model_loading.vs", "1.model_loading.fs");
-    Shader ourShader("1.2.pbr.vs", "1.2.pbr.fs");
+    Shader ourShader("1.2.pbr.vs", "frag.fs");
     ourShader.setInt("texture_PBR_diffuse1", 0);
     ourShader.setInt("texture_PBR_normal1", 1);
     ourShader.setInt("texture_PBR_metallic1", 2);
@@ -112,12 +112,12 @@ int main()
 
     glm::vec3 lightPositions[4] = {
     glm::vec3(0.0f, 0.0f, 2.0f),
-    glm::vec3(0.0f, 0.0f, 2.0f),
-    glm::vec3(0.0f, 0.0f, 2.0f),
-    glm::vec3(0.0f, 0.0f, 2.0f),
-    //glm::vec3(0.0f, 0.0f, -10.0f),
-    //glm::vec3(5.0f, 2.0f, 5.0f),
-    //glm::vec3(0.0f, 0.0f, 10.0f),
+    //glm::vec3(0.0f, 0.0f, 2.0f),
+    //glm::vec3(0.0f, 0.0f, 2.0f),
+    //glm::vec3(0.0f, 0.0f, 2.0f),
+    glm::vec3(0.0f, 0.0f, -10.0f),
+    glm::vec3(5.0f, 2.0f, 5.0f),
+    glm::vec3(0.0f, 0.0f, 10.0f),
     };
     glm::vec3 lightColors[4] = {
         glm::vec3(150.0f, 150.0f, 150.0f),
@@ -175,7 +175,7 @@ int main()
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
         //model = glm::scale(model, glm::vec3(1.0f));	// it's a bit too big for our scene, so scale it down
-        model = glm::scale(model, glm::vec3(0.1f));	// it's a bit too big for our scene, so scale it down
+        model = glm::scale(model, glm::vec3(0.01f));	// it's a bit too big for our scene, so scale it down
         model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1, 0, 0));
         ourShader.setMat4("model", model);
 

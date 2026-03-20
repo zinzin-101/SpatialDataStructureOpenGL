@@ -30,6 +30,7 @@
     <None Include="1.2.pbr.vs" />
     <None Include="1.model_loading.fs" />
     <None Include="1.model_loading.vs" />
+    <None Include="frag.fs" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PBRMesh.h">
