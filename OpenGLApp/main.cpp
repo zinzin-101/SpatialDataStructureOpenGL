@@ -36,9 +36,41 @@ float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
 struct DOP8 {
-    float min[4];
-    float max[4];
-    // TODO
+    float planeMin[4];
+    float planeMax[4];
+    PBRModel* model;
+    glm::mat4 modelMat;
+    DOP8(PBRModel* model): model(model), modelMat(1.0f) {
+        calculateBounds();
+    }
+
+    void calculateBounds() {
+        glm::vec4 axes[4] = {
+            { 1.0f, 1.0f, 1.0f, 0.0f },
+            { -1.0f, 1.0f, 1.0f, 0.0f },
+            { 1.0f, -1.0f, 1.0f, 0.0f },
+            { -1.0f, -1.0f, 1.0, 0.0f }
+        };
+
+        float min = 0.0f;
+        float max = 0.0f;
+
+        for (int i = 0; i < 4; i++) {
+            axes[i] = glm::normalize(axes[i]);
+
+            for (const PBRMesh& mesh : model->meshes) {
+                for (const Vertex& vertex : mesh.vertices) {
+                    glm::vec4 position = modelMat * glm::vec4(vertex.Position, 1.0f);
+                    float d = glm::dot(axes[i], position);
+                    min = std::min(min, d);
+                    max = std::max(max, d);
+                }
+            }
+
+            planeMin[i] = min;
+            planeMax[i] = max;
+        }
+    }
 };
 
 
@@ -132,6 +164,13 @@ int main()
         glm::vec3(150.0f, 150.0f, 150.0f),
         glm::vec3(150.0f, 150.0f, 150.0f),
     };
+
+    DOP8 dop8(&ourModel);
+    dop8.calculateBounds();
+    for (int i = 0; i < 4; i++) {
+        std::cout << "min " << i << ": " << dop8.planeMin[i] << std::endl;
+        std::cout << "max " << i << ": " << dop8.planeMax[i] << std::endl;
+    }
 
     // draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
