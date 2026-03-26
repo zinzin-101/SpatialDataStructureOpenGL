@@ -35,6 +35,13 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
+struct DOP8 {
+    float min[4];
+    float max[4];
+    // TODO
+};
+
+
 int PBRMesh::maxTextureNumber = 0;
 
 unsigned int PBRMesh::defaultAlbedo = 0;
