@@ -10,6 +10,8 @@
 #include <camera.h>
 #include "PBRModel.h"
 
+#include <limits>
+
 #include <iostream>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -44,23 +46,37 @@ struct DOP8 {
         calculateBounds();
     }
 
-    void calculateBounds() {
-        glm::vec4 axes[4] = {
-            { 1.0f, 1.0f, 1.0f, 0.0f },
-            { -1.0f, 1.0f, 1.0f, 0.0f },
-            { 1.0f, -1.0f, 1.0f, 0.0f },
-            { -1.0f, -1.0f, 1.0, 0.0f }
+    void translate(glm::vec3 v) {
+        glm::vec3 axes[4] = {
+            { 1.0f, 1.0f, 1.0f },
+            { -1.0f, 1.0f, 1.0f },
+            { 1.0f, -1.0f, 1.0f },
+            { -1.0f, -1.0f, 1.0 }
         };
 
-        float min = 0.0f;
-        float max = 0.0f;
+        for (int i = 0; i < 4; i++) {
+            float d = glm::dot(glm::normalize(axes[i]), v);
+            planeMin[i] += d;
+            planeMax[i] += d;
+        }   
+    }
+
+    void calculateBounds() {
+        glm::vec3 axes[4] = {
+            { 1.0f, 1.0f, 1.0f },
+            { -1.0f, 1.0f, 1.0f },
+            { 1.0f, -1.0f, 1.0f },
+            { -1.0f, -1.0f, 1.0 }
+        };
 
         for (int i = 0; i < 4; i++) {
             axes[i] = glm::normalize(axes[i]);
+            float min = std::numeric_limits<float>::max();
+            float max = std::numeric_limits<float>::lowest();
 
             for (const PBRMesh& mesh : model->meshes) {
                 for (const Vertex& vertex : mesh.vertices) {
-                    glm::vec4 position = modelMat * glm::vec4(vertex.Position, 1.0f);
+                    glm::vec3 position = modelMat * glm::vec4(vertex.Position, 1.0f);
                     float d = glm::dot(axes[i], position);
                     min = std::min(min, d);
                     max = std::max(max, d);
@@ -218,16 +234,21 @@ int main()
         ourShader.setVec3("camPos", camera.Position);
 
         // render the loaded model
+
+
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
         //model = glm::scale(model, glm::vec3(1.0f));	// it's a bit too big for our scene, so scale it down
         model = glm::scale(model, glm::vec3(0.01f));	// it's a bit too big for our scene, so scale it down
         model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1, 0, 0));
         ourShader.setMat4("model", model);
+        dop8.modelMat = model;
 
         ourShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
 
         ourModel.Draw(ourShader);
+
+
         //chisaModel.Draw(ourShader);
         //swordModel.Draw(ourShader);
 
