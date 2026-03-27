@@ -181,6 +181,9 @@ int main()
         glm::vec3(150.0f, 150.0f, 150.0f),
     };
 
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+
     DOP8 dop8(&ourModel);
     dop8.calculateBounds();
     for (int i = 0; i < 4; i++) {
