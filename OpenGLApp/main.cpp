@@ -18,6 +18,8 @@
 #include <queue>
 #include <map>
 #include <iostream>
+#include <stdlib.h>
+#include <time.h>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -45,6 +47,10 @@ float lastFrame = 0.0f;
 // controls
 std::map<unsigned int, bool> keyDownMap;
 bool showVisualization = false;
+bool canUpdatePosition = true;
+float maxDistanceFromOrigin = 50.0f;
+float maxSpeedPerAxis = 5.0f;
+const int NUMBER_OF_OBJECTS = 200;
 
 struct DOP8 {
     static const glm::vec3 axes[4];
@@ -222,9 +228,21 @@ void visualizeDOP8Planes(const BoundingVolumeObject& object, Shader& shader) {
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 2; j++) {
             glm::vec3 axis = glm::normalize(DOP8::axes[i]);
-            glm::vec3 rotationalAxis = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), axis));
-            float angle = acos(glm::dot(glm::vec3(0.0f, 1.0f, 0.0f), axis));
-            glm::mat4 rotMat = glm::rotate(glm::mat4(1.0f), angle, rotationalAxis);
+            glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+            glm::mat4 rotMat(1.0f);
+
+            float dot = glm::dot(up, axis);
+            if (std::abs(dot) < 0.99f) {
+                glm::vec3 rotationalAxis = glm::normalize(glm::cross(up, axis));
+                float angle = acos(glm::dot(glm::vec3(0.0f, 1.0f, 0.0f), axis));
+                rotMat = glm::rotate(glm::mat4(1.0f), angle, rotationalAxis);
+            }
+            else if (dot < -0.99f) {
+                rotMat = glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+            }
+            else {
+                rotMat = glm::rotate(glm::mat4(1.0f), glm::radians(-180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+            }
 
             float d = j > 0 ? object.boundingVolume->planeMin[i] : object.boundingVolume->planeMax[i];
             //float d = object.objectPlaneMax[i];
@@ -258,9 +276,18 @@ void visualizeDOP26Planes(const BoundingVolumeObject& object, Shader& shader) {
     for (int i = 0; i < 13; i++) {
         for (int j = 0; j < 2; j++) {
             glm::vec3 axis = glm::normalize(DOP26::axes[i]);
-            glm::vec3 rotationalAxis = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), axis));
-            float angle = acos(glm::dot(glm::vec3(0.0f, 1.0f, 0.0f), axis));
-            glm::mat4 rotMat = glm::rotate(glm::mat4(1.0f), angle, rotationalAxis);
+            glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+            glm::mat4 rotMat(1.0f);
+
+            float dot = glm::dot(up, axis);
+            if (std::abs(dot) < 0.99f) {
+                glm::vec3 rotationalAxis = glm::normalize(glm::cross(up, axis));
+                float angle = acos(glm::dot(glm::vec3(0.0f, 1.0f, 0.0f), axis));
+                rotMat = glm::rotate(glm::mat4(1.0f), angle, rotationalAxis);
+            }
+            else if (dot < -0.99f) {
+                rotMat = glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+            }
 
             float d = j > 0 ? object.boundingVolume->planeMin[i] : object.boundingVolume->planeMax[i];
             //float d = object.objectPlaneMax[i];
@@ -313,6 +340,10 @@ void renderPlanes(std::vector<BoundingVolumeObject>& volumeObjects, Shader& shad
     }
     glDisable(GL_BLEND);
     glDepthMask(GL_TRUE);
+}
+
+float randFloat() {
+    return (float)rand() / (float)RAND_MAX;
 }
 
 std::vector<BoundingVolumeObject> objects;
@@ -368,6 +399,8 @@ int main()
     // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
     stbi_set_flip_vertically_on_load(false);
 
+    srand(time(NULL));
+
     glEnable(GL_DEPTH_TEST);
 
     Shader simpleShader("1.2.pbr.vs", "frag.fs");
@@ -385,6 +418,11 @@ int main()
     //PBRModel swordModel(FileSystem::getPath("resources/objects/sword/scene.gltf"));
     //Model ourModel(FileSystem::getPath("resources/objects/wheel/wheel.fbx"));
 
+    //PBRModel basketballCourt(FileSystem::getPath("resources/objects/basketball_court/scene.gltf"));
+    //glm::mat4 basketballCourtModelMat(1.0f);
+    //basketballCourtModelMat = glm::translate(basketballCourtModelMat, glm::vec3(0.0f, 0.0f, 0.0f));
+    //basketballCourtModelMat = glm::scale(basketballCourtModelMat, glm::vec3(3.0f));
+    //basketballCourtModelMat = glm::rotate(basketballCourtModelMat, glm::radians(-90.0f), glm::vec3(1, 0, 0));
 
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
@@ -423,11 +461,11 @@ int main()
 
     glm::mat4 ballModelMat(1.0f);
     ballModelMat = glm::translate(ballModelMat, glm::vec3(0.0f, 0.0f, 0.0f));
-    ballModelMat = glm::scale(ballModelMat, glm::vec3(0.01f));
+    ballModelMat = glm::scale(ballModelMat, glm::vec3(0.05f));
     ballModelMat = glm::rotate(ballModelMat, glm::radians(-90.0f), glm::vec3(1, 0, 0));
 
     glm::mat4 chisaModelMat(1.0f);
-    chisaModelMat = ballModelMat;
+    chisaModelMat = glm::scale(ballModelMat, glm::vec3(2.5f));
 
     //std::cout << glm::to_string(ballModelMat) << std::endl;
 
@@ -435,13 +473,37 @@ int main()
     //DOP8 chisaDOP = DOP8(&chisaModel, chisaModelMat);
 
     DOP26 ballDOP = DOP26(&ballModel, ballModelMat);
-    DOP26 chisaDOP = DOP26(&chisaModel, chisaModelMat);
+    //DOP26 chisaDOP = DOP26(&chisaModel, chisaModelMat);
 
-    objects.emplace_back(BoundingVolumeObject(&ballModel, &ballDOP));
-    objects.emplace_back(BoundingVolumeObject(&chisaModel, &chisaDOP));
+    //objects.emplace_back(BoundingVolumeObject(&ballModel, &ballDOP));
+    //objects.emplace_back(BoundingVolumeObject(&chisaModel, &chisaDOP));
+
+    for (int i = 0; i < NUMBER_OF_OBJECTS; i++) {
+        float distanceFromOrigin = 0.0f;
+        glm::vec3 position = glm::vec3(0.0f);
+        do {
+            position = glm::vec3(
+                2.0f * maxDistanceFromOrigin * randFloat() - maxDistanceFromOrigin,
+                2.0f * maxDistanceFromOrigin * randFloat() - maxDistanceFromOrigin,
+                2.0f * maxDistanceFromOrigin * randFloat() - maxDistanceFromOrigin
+            );
+            distanceFromOrigin = glm::length(position - glm::vec3(0.0f));
+        } while (distanceFromOrigin < maxDistanceFromOrigin);
+
+        BoundingVolumeObject object = BoundingVolumeObject(&ballModel, &ballDOP);
+        object.position = position;
+        object.velocity = glm::vec3(
+            2.0f * maxSpeedPerAxis * randFloat() - maxSpeedPerAxis,
+            2.0f * maxSpeedPerAxis * randFloat() - maxSpeedPerAxis,
+            2.0f * maxSpeedPerAxis * randFloat() - maxSpeedPerAxis
+        );
+        objects.emplace_back(object);
+    }
 
     // draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    camera.MovementSpeed = 4.0f;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -461,9 +523,22 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // update
-        for (BoundingVolumeObject& object : objects) {
-            object.update(deltaTime);
-            object.collided = false;
+        if (canUpdatePosition) {
+            for (BoundingVolumeObject& object : objects) {
+                object.update(deltaTime);
+
+                glm::vec3 directionFromOrigin = object.position - glm::vec3(0.0f);
+                float distanceFromOrigin = glm::length(directionFromOrigin);
+                if (distanceFromOrigin > maxDistanceFromOrigin) {
+                    directionFromOrigin = glm::normalize(directionFromOrigin);
+
+                    object.position = directionFromOrigin * (distanceFromOrigin - 1.0f);
+
+                    object.velocity = -object.velocity;
+                }
+
+                object.collided = false;
+            }
         }
 
         // collision detection
@@ -498,6 +573,11 @@ int main()
         if (showVisualization) {
             renderPlanes(objects, simpleShader);
         }
+
+        //simpleShader.setMat4("model", basketballCourtModelMat);
+        //simpleShader.setMat4("normalMatrix", glm::transpose(glm::inverse(glm::mat3(basketballCourtModelMat))));
+        //simpleShader.setVec3("color", glm::vec3(1.0f));
+        //basketballCourt.Draw(simpleShader);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -549,14 +629,23 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
         camera.ProcessKeyboard(DOWN, deltaTime);
 
-    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
-        objects[0].position += camera.Right * 5.0f * deltaTime;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        camera.MovementSpeed = 16.0f;
+    else 
+        camera.MovementSpeed = 4.0f;
 
-    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
-        objects[0].position -= camera.Right * 5.0f * deltaTime;
+    //if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+    //    objects[0].position += camera.Right * 5.0f * deltaTime;
+
+    //if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+    //    objects[0].position -= camera.Right * 5.0f * deltaTime;
 
     if (getKeyDown(window, GLFW_KEY_SPACE)) {
         showVisualization = !showVisualization;
+    }
+
+    if (getKeyDown(window, GLFW_KEY_X)) {
+        canUpdatePosition = !canUpdatePosition;
     }
 }
 
