@@ -24,6 +24,6 @@ void main(){
 		FragColor = vec4(color, opacity);
 	}
 	else{
-		FragColor = vec4(texture(texture_PBR_diffuse1, TexCoords).rgb, opacity);
+		FragColor = vec4(color * texture(texture_PBR_diffuse1, TexCoords).rgb, opacity);
 	}
 }

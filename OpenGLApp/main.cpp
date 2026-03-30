@@ -43,6 +43,7 @@ float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
 // controls
+std::map<unsigned int, bool> keyDownMap;
 bool showVisualization = false;
 
 struct DOP8 {
@@ -142,7 +143,7 @@ unsigned int planeVAO = 0;
 unsigned int planeVBO = 0;
 unsigned int planeEBO = 0;
 
-void visualizeDOP8Planes(const BoundingVolumeObject& object, Shader& shader) {
+void visualizeDOPPlanes(const BoundingVolumeObject& object, Shader& shader) {
     shader.use();
     shader.setBool("useColor", true);
     shader.setVec3("color", object.collided ? glm::vec3(1.0f, 0.0f, 0.0f) : glm::vec3(1.0f));
@@ -202,7 +203,7 @@ void renderPlanes(std::vector<BoundingVolumeObject>& volumeObjects, Shader& shad
     while (!transparencyRenderQueue.empty()) {
         TransparencyRenderingObject obj = transparencyRenderQueue.top();
         transparencyRenderQueue.pop();
-        visualizeDOP8Planes(*obj.object, shader);
+        visualizeDOPPlanes(*obj.object, shader);
     }
     glDisable(GL_BLEND);
     glDepthMask(GL_TRUE);
@@ -415,23 +416,46 @@ int main()
         simpleShader.setVec3("camPos", camera.Position);
 
         for (BoundingVolumeObject& object : objects) {
+            simpleShader.setVec3("color", object.collided ? glm::vec3(1.0f, 0.0f, 0.0f) : glm::vec3(1.0f));
             object.draw(simpleShader);
         }
 
-        renderPlanes(objects, simpleShader);
+        if (showVisualization) {
+            renderPlanes(objects, simpleShader);
+        }
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    // glfw: terminate, clearing all previously allocated GLFW resources.
-    // ------------------------------------------------------------------
     glfwTerminate();
     return 0;
 }
 
-// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
-// ---------------------------------------------------------------------------------------------------------
+bool getKeyDown(GLFWwindow* window, unsigned int key) {
+    // init
+    if (keyDownMap.count(key) == 0) {
+        keyDownMap[key] = false;
+        return false;
+    }
+
+    if (glfwGetKey(window, key) == GLFW_PRESS && keyDownMap.at(key)) {
+        return false;
+    }
+
+    if (glfwGetKey(window, key) == GLFW_RELEASE && keyDownMap.at(key)) {
+        keyDownMap[key] = false;
+        return false;
+    }
+
+    if (glfwGetKey(window, key) == GLFW_PRESS && !keyDownMap.at(key)) {
+        keyDownMap[key] = true;
+        return true;
+    }
+
+    return false;
+}
+
 void processInput(GLFWwindow* window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -455,19 +479,17 @@ void processInput(GLFWwindow* window)
 
     if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
         objects[0].position -= camera.Right * 5.0f * deltaTime;
+
+    if (getKeyDown(window, GLFW_KEY_SPACE)) {
+        showVisualization = !showVisualization;
+    }
 }
 
-// glfw: whenever the window size changed (by OS or user resize) this callback function executes
-// ---------------------------------------------------------------------------------------------
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
-    // make sure the viewport matches the new window dimensions; note that width and 
-    // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
 }
 
-// glfw: whenever the mouse moves, this callback is called
-// -------------------------------------------------------
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 {
     float xpos = static_cast<float>(xposIn);
@@ -489,8 +511,6 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
     camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
-// glfw: whenever the mouse scroll wheel scrolls, this callback is called
-// ----------------------------------------------------------------------
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     camera.ProcessMouseScroll(static_cast<float>(yoffset));
