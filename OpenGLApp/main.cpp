@@ -5,6 +5,10 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+// debug
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/string_cast.hpp>
+
 #include <filesystem.h>
 #include <shader_m.h>
 #include <camera.h>
@@ -40,13 +44,14 @@ float lastFrame = 0.0f;
 struct DOP8 {
     float planeMin[4];
     float planeMax[4];
+
     PBRModel* model;
-    glm::mat4 modelMat;
-    DOP8(PBRModel* model): model(model), modelMat(1.0f) {
+    glm::mat4 modelToWorldMat;
+    DOP8(PBRModel* model, glm::mat4 modelToWorldMat): model(model), modelToWorldMat(modelToWorldMat) {
         calculateBounds();
     }
 
-    void translate(glm::vec3 v) {
+    void translates(float* planeTranslatedMin, float* planeTranslatedMax, glm::vec3 v) {
         glm::vec3 axes[4] = {
             { 1.0f, 1.0f, 1.0f },
             { -1.0f, 1.0f, 1.0f },
@@ -56,8 +61,8 @@ struct DOP8 {
 
         for (int i = 0; i < 4; i++) {
             float d = glm::dot(glm::normalize(axes[i]), v);
-            planeMin[i] += d;
-            planeMax[i] += d;
+            planeTranslatedMin[i] = planeMin[i] + d;
+            planeTranslatedMax[i] = planeMax[i] + d;
         }   
     }
 
@@ -76,7 +81,7 @@ struct DOP8 {
 
             for (const PBRMesh& mesh : model->meshes) {
                 for (const Vertex& vertex : mesh.vertices) {
-                    glm::vec3 position = modelMat * glm::vec4(vertex.Position, 1.0f);
+                    glm::vec3 position = modelToWorldMat * glm::vec4(vertex.Position, 1.0f);
                     float d = glm::dot(axes[i], position);
                     min = std::min(min, d);
                     max = std::max(max, d);
@@ -89,6 +94,49 @@ struct DOP8 {
     }
 };
 
+struct BoundingVolumeObject {
+    PBRModel* objectModel;
+    DOP8* boundingVolume;
+    glm::vec3 position;
+    glm::vec3 velocity;
+
+    float objectPlaneMin[4];
+    float objectPlaneMax[4];
+
+    BoundingVolumeObject(PBRModel* model, DOP8* boundingVolume): objectModel(model), boundingVolume(boundingVolume), position(0.0f), velocity(0.0f) {
+        for (int i = 0; i < 4; i++) {
+            objectPlaneMin[i] = boundingVolume->planeMin[i];
+            objectPlaneMax[i] = boundingVolume->planeMax[i];
+        }
+    }
+
+    void update(float dt) {
+        position += velocity * dt;
+        boundingVolume->translates(objectPlaneMin, objectPlaneMax, position);
+    }
+
+    void draw(Shader& shader) {
+        shader.use();
+        glm::mat4 model(1.0f);
+        model = glm::translate(glm::mat4(1.0f), position) * boundingVolume->modelToWorldMat;
+        shader.setMat4("model", model);
+        shader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+
+        objectModel->Draw(shader);
+    }
+};
+
+
+bool DOP8Test(const BoundingVolumeObject& a, const BoundingVolumeObject& b) {
+    for (int i = 0; i < 4; i++) {
+        if (a.objectPlaneMin[i] > b.objectPlaneMax[i] || a.objectPlaneMax[i] < b.objectPlaneMin[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+std::vector<BoundingVolumeObject> objects;
 
 int PBRMesh::maxTextureNumber = 0;
 
@@ -148,19 +196,18 @@ int main()
     // build and compile shaders
     // -------------------------
     //Shader ourShader("1.model_loading.vs", "1.model_loading.fs");
-    Shader ourShader("1.2.pbr.vs", "frag.fs");
-    ourShader.setInt("texture_PBR_diffuse1", 0);
-    ourShader.setInt("texture_PBR_normal1", 1);
-    ourShader.setInt("texture_PBR_metallic1", 2);
-    ourShader.setInt("texture_PBR_roughness1", 3);
-    ourShader.setInt("texture_PBR_ambient_occlusion1", 4);
+    Shader simpleShader("1.2.pbr.vs", "frag.fs");
+    simpleShader.setInt("texture_PBR_diffuse1", 0);
+    simpleShader.setInt("texture_PBR_normal1", 1);
+    simpleShader.setInt("texture_PBR_metallic1", 2);
+    simpleShader.setInt("texture_PBR_roughness1", 3);
+    simpleShader.setInt("texture_PBR_ambient_occlusion1", 4);
     //Shader ourShader("1.2.pbr.vs", "1.2.pbr.fs");
 
     // load models
     // -----------
     //Model ourModel(FileSystem::getPath("resources/objects/mask/source/mask.fbx"));
     //PBRModel ourModel(FileSystem::getPath("resources/objects/wooden_chest/scene.gltf"));
-    PBRModel ourModel(FileSystem::getPath("resources/objects/basketball/scene.gltf"));
     //PBRModel chisaModel(FileSystem::getPath("resources/objects/chisa/scene.gltf"));
     //PBRModel swordModel(FileSystem::getPath("resources/objects/sword/scene.gltf"));
     //Model ourModel(FileSystem::getPath("resources/objects/wheel/wheel.fbx"));
@@ -184,18 +231,24 @@ int main()
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
 
-    DOP8 dop8(&ourModel);
-    dop8.calculateBounds();
-    for (int i = 0; i < 4; i++) {
-        std::cout << "min " << i << ": " << dop8.planeMin[i] << std::endl;
-        std::cout << "max " << i << ": " << dop8.planeMax[i] << std::endl;
-    }
+    // setting up bounding objects
+    PBRModel ballModel(FileSystem::getPath("resources/objects/basketball/scene.gltf"));
+
+    glm::mat4 ballModelMat(1.0f);
+    ballModelMat = glm::translate(ballModelMat, glm::vec3(0.0f, 0.0f, 0.0f));
+    ballModelMat = glm::scale(ballModelMat, glm::vec3(0.01f));
+    ballModelMat = glm::rotate(ballModelMat, glm::radians(-90.0f), glm::vec3(1, 0, 0));
+
+    std::cout << glm::to_string(ballModelMat) << std::endl;
+
+    DOP8 ballDOP = DOP8(&ballModel, ballModelMat);
+
+    objects.emplace_back(BoundingVolumeObject(&ballModel, &ballDOP));
+
 
     // draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-    // render loop
-    // -----------
     while (!glfwWindowShouldClose(window))
     {
         // per-frame time logic
@@ -213,8 +266,13 @@ int main()
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // don't forget to enable shader before setting uniforms
-        ourShader.use();
+        // update
+        for (BoundingVolumeObject& object : objects) {
+            object.update(deltaTime);
+        }
+
+        // rendering
+        simpleShader.use();
 
         //lighting
         //for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
@@ -222,42 +280,24 @@ int main()
         {
             glm::vec3 newPos = lightPositions[i] + glm::vec3(sin(glfwGetTime() * 5.0) * 5.0, 0.0, 0.0);
             newPos = lightPositions[i];
-            ourShader.setVec3("lightPositions[" + std::to_string(i) + "]", newPos);
-            ourShader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
+            simpleShader.setVec3("lightPositions[" + std::to_string(i) + "]", newPos);
+            simpleShader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
 
             //std::cout << i << std::endl;
         }
 
+
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
-        ourShader.setMat4("projection", projection);
-        ourShader.setMat4("view", view);
+        simpleShader.setMat4("projection", projection);
+        simpleShader.setMat4("view", view);
+        simpleShader.setVec3("camPos", camera.Position);
 
-        ourShader.setVec3("camPos", camera.Position);
+        for (BoundingVolumeObject& object : objects) {
+            object.draw(simpleShader);
+        }
 
-        // render the loaded model
-
-
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
-        //model = glm::scale(model, glm::vec3(1.0f));	// it's a bit too big for our scene, so scale it down
-        model = glm::scale(model, glm::vec3(0.01f));	// it's a bit too big for our scene, so scale it down
-        model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1, 0, 0));
-        ourShader.setMat4("model", model);
-        dop8.modelMat = model;
-
-        ourShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
-
-        ourModel.Draw(ourShader);
-
-
-        //chisaModel.Draw(ourShader);
-        //swordModel.Draw(ourShader);
-
-
-        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-        // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -287,6 +327,12 @@ void processInput(GLFWwindow* window)
         camera.ProcessKeyboard(UP, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
         camera.ProcessKeyboard(DOWN, deltaTime);
+
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+        objects[0].position += camera.Right * 5.0f * deltaTime;
+
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+        objects[0].position -= camera.Right * 5.0f * deltaTime;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
