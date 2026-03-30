@@ -151,6 +151,7 @@
   <ItemGroup>
     <ClInclude Include="PBRMesh.h" />
     <ClInclude Include="PBRModel.h" />
+    <ClInclude Include="VerticesData.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

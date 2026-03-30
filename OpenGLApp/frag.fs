@@ -15,6 +15,15 @@ uniform bool useMR;
 
 uniform vec3 camPos;
 
+uniform bool useColor;
+uniform vec3 color;
+uniform float opacity;
+
 void main(){
-	FragColor = vec4(texture(texture_PBR_diffuse1, TexCoords).rgb, 1.0);
+	if (useColor){
+		FragColor = vec4(color, opacity);
+	}
+	else{
+		FragColor = vec4(texture(texture_PBR_diffuse1, TexCoords).rgb, opacity);
+	}
 }

@@ -6,16 +6,17 @@
 #include <glm/gtc/type_ptr.hpp>
 
 // debug
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/string_cast.hpp>
-
+//#define GLM_ENABLE_EXPERIMENTAL
+//#include <glm/gtx/string_cast.hpp>
 #include <filesystem.h>
 #include <shader_m.h>
 #include <camera.h>
 #include "PBRModel.h"
+#include "VerticesData.h"
 
 #include <limits>
-
+#include <queue>
+#include <map>
 #include <iostream>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -41,7 +42,12 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
+// controls
+bool showVisualization = false;
+
 struct DOP8 {
+    static const glm::vec3 axes[4];
+
     float planeMin[4];
     float planeMax[4];
 
@@ -52,13 +58,6 @@ struct DOP8 {
     }
 
     void translates(float* planeTranslatedMin, float* planeTranslatedMax, glm::vec3 v) {
-        glm::vec3 axes[4] = {
-            { 1.0f, 1.0f, 1.0f },
-            { -1.0f, 1.0f, 1.0f },
-            { 1.0f, -1.0f, 1.0f },
-            { -1.0f, -1.0f, 1.0 }
-        };
-
         for (int i = 0; i < 4; i++) {
             float d = glm::dot(glm::normalize(axes[i]), v);
             planeTranslatedMin[i] = planeMin[i] + d;
@@ -67,22 +66,15 @@ struct DOP8 {
     }
 
     void calculateBounds() {
-        glm::vec3 axes[4] = {
-            { 1.0f, 1.0f, 1.0f },
-            { -1.0f, 1.0f, 1.0f },
-            { 1.0f, -1.0f, 1.0f },
-            { -1.0f, -1.0f, 1.0 }
-        };
-
         for (int i = 0; i < 4; i++) {
-            axes[i] = glm::normalize(axes[i]);
+            glm::vec3 axis = glm::normalize(axes[i]);
             float min = std::numeric_limits<float>::max();
             float max = std::numeric_limits<float>::lowest();
 
             for (const PBRMesh& mesh : model->meshes) {
                 for (const Vertex& vertex : mesh.vertices) {
                     glm::vec3 position = modelToWorldMat * glm::vec4(vertex.Position, 1.0f);
-                    float d = glm::dot(axes[i], position);
+                    float d = glm::dot(axis, position);
                     min = std::min(min, d);
                     max = std::max(max, d);
                 }
@@ -93,6 +85,12 @@ struct DOP8 {
         }
     }
 };
+const glm::vec3 DOP8::axes[4] = {
+    { 1.0f, 1.0f, 1.0f },
+    { -1.0f, 1.0f, 1.0f },
+    { 1.0f, -1.0f, 1.0f },
+    { -1.0f, -1.0f, 1.0 }
+};
 
 struct BoundingVolumeObject {
     PBRModel* objectModel;
@@ -100,10 +98,14 @@ struct BoundingVolumeObject {
     glm::vec3 position;
     glm::vec3 velocity;
 
+    bool collided;
+
     float objectPlaneMin[4];
     float objectPlaneMax[4];
 
-    BoundingVolumeObject(PBRModel* model, DOP8* boundingVolume): objectModel(model), boundingVolume(boundingVolume), position(0.0f), velocity(0.0f) {
+    BoundingVolumeObject(PBRModel* model, DOP8* boundingVolume): 
+        objectModel(model), boundingVolume(boundingVolume), position(0.0f), velocity(0.0f), collided(false) 
+    {
         for (int i = 0; i < 4; i++) {
             objectPlaneMin[i] = boundingVolume->planeMin[i];
             objectPlaneMax[i] = boundingVolume->planeMax[i];
@@ -118,7 +120,7 @@ struct BoundingVolumeObject {
     void draw(Shader& shader) {
         shader.use();
         glm::mat4 model(1.0f);
-        model = glm::translate(glm::mat4(1.0f), position) * boundingVolume->modelToWorldMat;
+        model = glm::translate(model, position) * boundingVolume->modelToWorldMat;
         shader.setMat4("model", model);
         shader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
 
@@ -134,6 +136,76 @@ bool DOP8Test(const BoundingVolumeObject& a, const BoundingVolumeObject& b) {
         }
     }
     return true;
+}
+
+unsigned int planeVAO = 0;
+unsigned int planeVBO = 0;
+unsigned int planeEBO = 0;
+
+void visualizeDOP8Planes(const BoundingVolumeObject& object, Shader& shader) {
+    shader.use();
+    shader.setBool("useColor", true);
+    shader.setVec3("color", object.collided ? glm::vec3(1.0f, 0.0f, 0.0f) : glm::vec3(1.0f));
+    shader.setFloat("opacity", 0.5f);
+
+    glDisable(GL_CULL_FACE);
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 2; j++) {
+            glm::vec3 axis = glm::normalize(DOP8::axes[i]);
+            glm::vec3 rotationalAxis = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), axis));
+            float angle = acos(glm::dot(glm::vec3(0.0f, 1.0f, 0.0f), axis));
+            glm::mat4 rotMat = glm::rotate(glm::mat4(1.0f), angle, rotationalAxis);
+
+            float d = j > 0 ? object.boundingVolume->planeMin[i] : object.boundingVolume->planeMax[i];
+            //float d = object.objectPlaneMax[i];
+
+            glm::mat4 model(1.0f);
+            model = glm::translate(model, object.position) * rotMat;
+            model = glm::scale(model, glm::vec3(1.8f, 1.0f, 1.8f));
+            model = glm::translate(model, glm::vec3(0.0f, d, 0.0f));
+
+            shader.setMat4("model", model);
+            shader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+
+            glBindVertexArray(planeVAO);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+            glBindVertexArray(0);
+        }
+    }
+
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    shader.setBool("useColor", false);
+}
+
+struct TransparencyRenderingObject {
+    BoundingVolumeObject* object;
+    float distanceToCamera;
+    TransparencyRenderingObject(BoundingVolumeObject* object, float distanceToCamera): object(object), distanceToCamera(distanceToCamera) {}
+};
+
+struct TransparencyComparator {
+    bool operator()(const TransparencyRenderingObject& obj1, const TransparencyRenderingObject& obj2) {
+        return obj1.distanceToCamera > obj2.distanceToCamera;
+    }
+};
+
+void renderPlanes(std::vector<BoundingVolumeObject>& volumeObjects, Shader& shader) {
+    std::priority_queue<TransparencyRenderingObject, std::vector<TransparencyRenderingObject>, TransparencyComparator> transparencyRenderQueue;
+    for (BoundingVolumeObject& object : volumeObjects) {
+        transparencyRenderQueue.emplace(TransparencyRenderingObject(&object, glm::length(object.position - camera.Position)));
+    }
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);
+    while (!transparencyRenderQueue.empty()) {
+        TransparencyRenderingObject obj = transparencyRenderQueue.top();
+        transparencyRenderQueue.pop();
+        visualizeDOP8Planes(*obj.object, shader);
+    }
+    glDisable(GL_BLEND);
+    glDepthMask(GL_TRUE);
 }
 
 std::vector<BoundingVolumeObject> objects;
@@ -162,7 +234,7 @@ int main()
     // glfw window creation
     // --------------------
     GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "KDOP_BoundingVolume", NULL, NULL);
     //GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", primaryMonitor, NULL);
     if (window == NULL)
     {
@@ -231,20 +303,53 @@ int main()
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
 
+    // Setting up plane object
+    glGenVertexArrays(1, &planeVAO);
+    glBindVertexArray(planeVAO);
+    glGenBuffers(1, &planeVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
+    glBufferData(
+        GL_ARRAY_BUFFER, 
+        sizeof(float) * 4 * 6,
+        PLANE_VERTICES,
+        GL_STATIC_DRAW
+    );
+    // positions
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    // normals
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glGenBuffers(1, &planeEBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, planeEBO);
+    glBufferData(
+        GL_ELEMENT_ARRAY_BUFFER,
+        6 * sizeof(unsigned int),
+        PLANE_INDICES,
+        GL_STATIC_DRAW
+    );
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
     // setting up bounding objects
     PBRModel ballModel(FileSystem::getPath("resources/objects/basketball/scene.gltf"));
+    PBRModel chisaModel(FileSystem::getPath("resources/objects/chisa/scene.gltf"));
 
     glm::mat4 ballModelMat(1.0f);
     ballModelMat = glm::translate(ballModelMat, glm::vec3(0.0f, 0.0f, 0.0f));
     ballModelMat = glm::scale(ballModelMat, glm::vec3(0.01f));
     ballModelMat = glm::rotate(ballModelMat, glm::radians(-90.0f), glm::vec3(1, 0, 0));
 
-    std::cout << glm::to_string(ballModelMat) << std::endl;
+    glm::mat4 chisaModelMat(1.0f);
+    chisaModelMat = ballModelMat;
+
+    //std::cout << glm::to_string(ballModelMat) << std::endl;
 
     DOP8 ballDOP = DOP8(&ballModel, ballModelMat);
+    DOP8 chisaDOP = DOP8(&chisaModel, chisaModelMat);
 
     objects.emplace_back(BoundingVolumeObject(&ballModel, &ballDOP));
-
+    objects.emplace_back(BoundingVolumeObject(&chisaModel, &chisaDOP));
 
     // draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -269,6 +374,21 @@ int main()
         // update
         for (BoundingVolumeObject& object : objects) {
             object.update(deltaTime);
+            object.collided = false;
+        }
+
+        // collision detection
+        int numOfObjects = objects.size();
+        for (int i = 0; i < numOfObjects; i++) {
+            for (int j = i + 1; j < numOfObjects; j++) {
+                BoundingVolumeObject& obj1 = objects[i];
+                BoundingVolumeObject& obj2 = objects[j];
+
+                if (DOP8Test(obj1, obj2)) {
+                    obj1.collided = true;
+                    obj2.collided = true;
+                }
+            }
         }
 
         // rendering
@@ -297,6 +417,8 @@ int main()
         for (BoundingVolumeObject& object : objects) {
             object.draw(simpleShader);
         }
+
+        renderPlanes(objects, simpleShader);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
