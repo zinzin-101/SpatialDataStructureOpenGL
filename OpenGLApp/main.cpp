@@ -319,7 +319,7 @@ struct TransparencyRenderingObject {
 
 struct TransparencyComparator {
     bool operator()(const TransparencyRenderingObject& obj1, const TransparencyRenderingObject& obj2) {
-        return obj1.distanceToCamera > obj2.distanceToCamera;
+        return obj1.distanceToCamera < obj2.distanceToCamera;
     }
 };
 
@@ -457,6 +457,9 @@ int main()
 
     // setting up bounding objects
     PBRModel ballModel(FileSystem::getPath("resources/objects/basketball/scene.gltf"));
+    PBRModel swordModel(FileSystem::getPath("resources/objects/sword/scene.gltf"));
+    PBRModel scytheModel(FileSystem::getPath("resources/objects/scythe/scene.gltf"));
+    PBRModel shotgunModel(FileSystem::getPath("resources/objects/shotgun/scene.gltf"));
     PBRModel chisaModel(FileSystem::getPath("resources/objects/chisa/scene.gltf"));
 
     glm::mat4 ballModelMat(1.0f);
@@ -464,15 +467,48 @@ int main()
     ballModelMat = glm::scale(ballModelMat, glm::vec3(0.05f));
     ballModelMat = glm::rotate(ballModelMat, glm::radians(-90.0f), glm::vec3(1, 0, 0));
 
+    glm::mat4 swordModelMat(1.0f);
+    swordModelMat = glm::translate(swordModelMat, glm::vec3(1.0f, 0.4f, 0.0f));
+    swordModelMat = glm::scale(swordModelMat, glm::vec3(0.65));
+    swordModelMat = glm::rotate(swordModelMat, glm::radians(-90.0f), glm::vec3(0, 1, 0));
+
+    glm::mat4 shotgunModelMat(1.0f);
+    shotgunModelMat = glm::scale(shotgunModelMat, glm::vec3(10.0f));
+    shotgunModelMat = glm::rotate(shotgunModelMat, glm::radians(-90.0f), glm::vec3(1, 0, 0));
+
+    glm::mat4 scytheModelMat(1.0f);
+    scytheModelMat = glm::scale(scytheModelMat, glm::vec3(0.075));
+    scytheModelMat = glm::rotate(scytheModelMat, glm::radians(-90.0f), glm::vec3(1, 0, 0));
+
     glm::mat4 chisaModelMat(1.0f);
     chisaModelMat = glm::scale(ballModelMat, glm::vec3(2.5f));
 
     //std::cout << glm::to_string(ballModelMat) << std::endl;
 
     //DOP8 ballDOP = DOP8(&ballModel, ballModelMat);
-    //DOP8 chisaDOP = DOP8(&chisaModel, chisaModelMat);
 
     DOP26 ballDOP = DOP26(&ballModel, ballModelMat);
+    DOP26 swordDOP = DOP26(&swordModel, swordModelMat);
+    DOP26 shotgunDOP = DOP26(&shotgunModel, shotgunModelMat);
+    DOP26 scytheDOP = DOP26(&scytheModel, scytheModelMat);
+    DOP26 chisaDOP = DOP26(&chisaModel, chisaModelMat);
+
+    DOP26* dops[4] = {
+        &ballDOP,
+        &swordDOP,
+        &shotgunDOP,
+        &scytheDOP,
+        //&chisaDOP
+    };
+
+    PBRModel* models[4] = {
+        &ballModel,
+        &swordModel,
+        &shotgunModel,
+        &scytheModel,
+        //&chisaModel
+    };
+
     //DOP26 chisaDOP = DOP26(&chisaModel, chisaModelMat);
 
     //objects.emplace_back(BoundingVolumeObject(&ballModel, &ballDOP));
@@ -490,7 +526,7 @@ int main()
             distanceFromOrigin = glm::length(position - glm::vec3(0.0f));
         } while (distanceFromOrigin < maxDistanceFromOrigin);
 
-        BoundingVolumeObject object = BoundingVolumeObject(&ballModel, &ballDOP);
+        BoundingVolumeObject object = BoundingVolumeObject(models[i % 4], dops[i % 4]);
         object.position = position;
         object.velocity = glm::vec3(
             2.0f * maxSpeedPerAxis * randFloat() - maxSpeedPerAxis,
@@ -519,7 +555,7 @@ int main()
 
         // render
         // ------
-        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // update
