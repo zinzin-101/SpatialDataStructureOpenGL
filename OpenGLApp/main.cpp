@@ -584,7 +584,7 @@ int main()
                 BoundingVolumeObject& obj1 = objects[i];
                 BoundingVolumeObject& obj2 = objects[j];
 
-                if (DOP8Test(obj1, obj2)) {
+                if (DOP26Test(obj1, obj2)) {
                     obj1.collided = true;
                     obj2.collided = true;
                 }
