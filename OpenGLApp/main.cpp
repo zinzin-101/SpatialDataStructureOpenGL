@@ -50,7 +50,9 @@ bool showVisualization = false;
 bool canUpdatePosition = true;
 float maxDistanceFromOrigin = 50.0f;
 float maxSpeedPerAxis = 5.0f;
-const int NUMBER_OF_OBJECTS = 200;
+//const int NUMBER_OF_OBJECTS = 200;
+const int NUMBER_OF_OBJECTS = 2000;
+bool useSpatialHashGrid = true;
 
 struct DOP8 {
     static const glm::vec3 axes[4];
@@ -346,6 +348,96 @@ float randFloat() {
     return (float)rand() / (float)RAND_MAX;
 }
 
+struct SpatialHashGrid {
+    static const float MAX_DISTANCE;
+    float spacing;
+    int tableSize;
+    std::vector<int> cellStart;
+    std::vector<int> cellEntries;
+    std::vector<int> queryIds;
+    int querySize;
+    SpatialHashGrid(float spacing, int maxNumberOfObject): spacing(spacing), tableSize(maxNumberOfObject * 2), querySize(0)  {
+        cellStart = std::vector<int>(tableSize + 1);
+        cellEntries = std::vector<int>(maxNumberOfObject);
+        queryIds = std::vector<int>(maxNumberOfObject);
+    }
+
+    int coordToHash(int x, int y, int z) {
+        int h = (x * 92837111) ^ (y * 689287499) ^ (z * 283923481);
+        return std::abs(h) % tableSize;
+    }
+
+    int floatToIntCoord(float coord) {
+        return std::floor(coord / spacing);
+    }
+
+    int getHashFromPosition(glm::vec3 position) {
+        return coordToHash(
+            floatToIntCoord(position.x),
+            floatToIntCoord(position.y),
+            floatToIntCoord(position.z)
+        );
+    }
+
+    void createHashGrid(const std::vector<BoundingVolumeObject>& objects) {
+        int numberOfObjects = objects.size();
+        int n = cellStart.size();
+        for (int i = 0; i < n; i++) {
+            cellStart[i] = 0;
+
+            if (i < cellEntries.size()) {
+                cellEntries[i] = 0;
+            }
+        }
+
+        for (int i = 0; i < numberOfObjects; i++) {
+            int hash = getHashFromPosition(objects[i].position);
+            cellStart[hash]++;
+        }
+
+        int start = 0;
+        for (int i = 0; i < tableSize; i++) {
+            start += cellStart[i];
+            cellStart[i] = start;
+        }
+        cellStart[tableSize] = start;
+
+        for (int i = 0; i < numberOfObjects; i++) {
+            int hash = getHashFromPosition(objects[i].position);
+            cellStart[hash]--;
+            cellEntries[cellStart[hash]] = i;
+        }
+    }
+
+    void query(glm::vec3 position, float maxDistance) {
+        int startX = floatToIntCoord(position.x - maxDistance);
+        int startY = floatToIntCoord(position.y - maxDistance);
+        int startZ = floatToIntCoord(position.z - maxDistance);
+
+        int endX = floatToIntCoord(position.x + maxDistance);
+        int endY = floatToIntCoord(position.y + maxDistance);
+        int endZ = floatToIntCoord(position.z + maxDistance);
+
+        querySize = 0;
+
+        for (int x = startX; x <= endX; x++) {
+            for (int y = startY; y <= endY; y++) {
+                for (int z = startZ; z <= endZ; z++) {
+                    int hash = coordToHash(x, y, z);
+                    int start = cellStart[hash];
+                    int end = cellStart[hash + 1];
+
+                    for (int i = start; i < end; i++) {
+                        queryIds[querySize] = cellEntries[i];
+                        querySize++;
+                    }
+                }
+            }
+        }
+    }
+};
+const float SpatialHashGrid::MAX_DISTANCE = 3.5f;
+
 std::vector<BoundingVolumeObject> objects;
 
 int PBRMesh::maxTextureNumber = 0;
@@ -387,6 +479,8 @@ int main()
 
     // tell GLFW to capture our mouse
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    glfwSwapInterval(0);
 
     // glad: load all OpenGL function pointers
     // ---------------------------------------
@@ -541,6 +635,8 @@ int main()
 
     camera.MovementSpeed = 4.0f;
 
+    SpatialHashGrid spatialHashGrid(4.0f, (int)objects.size());
+
     while (!glfwWindowShouldClose(window))
     {
         // per-frame time logic
@@ -579,14 +675,33 @@ int main()
 
         // collision detection
         int numOfObjects = objects.size();
-        for (int i = 0; i < numOfObjects; i++) {
-            for (int j = i + 1; j < numOfObjects; j++) {
-                BoundingVolumeObject& obj1 = objects[i];
-                BoundingVolumeObject& obj2 = objects[j];
+        if (useSpatialHashGrid) {
+            spatialHashGrid.createHashGrid(objects);
+            for (int i = 0; i < numOfObjects; i++) {
+                spatialHashGrid.query(objects[i].position, SpatialHashGrid::MAX_DISTANCE);
+                for (int query = 0; query < spatialHashGrid.querySize; query++) {
+                    int j = spatialHashGrid.queryIds[query];
 
-                if (DOP26Test(obj1, obj2)) {
-                    obj1.collided = true;
-                    obj2.collided = true;
+                    BoundingVolumeObject& obj1 = objects[i];
+                    BoundingVolumeObject& obj2 = objects[j];
+
+                    if (i != j && DOP26Test(obj1, obj2)) {
+                        obj1.collided = true;
+                        obj2.collided = true;
+                    }
+                }
+            }
+        }
+        else {
+            for (int i = 0; i < numOfObjects; i++) {
+                for (int j = i + 1; j < numOfObjects; j++) {
+                    BoundingVolumeObject& obj1 = objects[i];
+                    BoundingVolumeObject& obj2 = objects[j];
+
+                    if (DOP26Test(obj1, obj2)) {
+                        obj1.collided = true;
+                        obj2.collided = true;
+                    }
                 }
             }
         }
@@ -614,6 +729,21 @@ int main()
         //simpleShader.setMat4("normalMatrix", glm::transpose(glm::inverse(glm::mat3(basketballCourtModelMat))));
         //simpleShader.setVec3("color", glm::vec3(1.0f));
         //basketballCourt.Draw(simpleShader);
+
+        // Show Average FPS
+        static unsigned int frameNum = 0;
+        static double timeElapsed = 0.0;
+        static double fps = 0.0;
+
+        timeElapsed += deltaTime;
+        frameNum++;
+
+        if (timeElapsed >= 1.0f) { 
+            fps = frameNum / timeElapsed;
+            timeElapsed = 0.0f;
+            frameNum = 0;
+            std::cout << "FPS: " << fps << " Spatial Hash Grid: " << (useSpatialHashGrid ? "ON" : "OFF") << std::endl;
+        }
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -682,6 +812,10 @@ void processInput(GLFWwindow* window)
 
     if (getKeyDown(window, GLFW_KEY_X)) {
         canUpdatePosition = !canUpdatePosition;
+    }
+
+    if (getKeyDown(window, GLFW_KEY_H)) {
+        useSpatialHashGrid = !useSpatialHashGrid;
     }
 }
 
