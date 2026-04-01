@@ -48,7 +48,7 @@ float lastFrame = 0.0f;
 std::map<unsigned int, bool> keyDownMap;
 bool showVisualization = false;
 bool canUpdatePosition = true;
-float maxDistanceFromOrigin = 50.0f;
+float maxDistanceFromOrigin = 100.0f;
 float maxSpeedPerAxis = 5.0f;
 //const int NUMBER_OF_OBJECTS = 200;
 const int NUMBER_OF_OBJECTS = 2000;
@@ -382,6 +382,7 @@ struct SpatialHashGrid {
     void createHashGrid(const std::vector<BoundingVolumeObject>& objects) {
         int numberOfObjects = objects.size();
         int n = cellStart.size();
+        // initialize to zeroes
         for (int i = 0; i < n; i++) {
             cellStart[i] = 0;
 
@@ -390,11 +391,17 @@ struct SpatialHashGrid {
             }
         }
 
+        // count number of objects present in each cells
         for (int i = 0; i < numberOfObjects; i++) {
             int hash = getHashFromPosition(objects[i].position);
             cellStart[hash]++;
         }
 
+        // compute partial sum
+        // e.g.
+        // before -> cellStart: 0 0 2 0 4 0 1
+        // after  -> cellStart: 0 0 2 2 6 6 7
+        // each number points to the last cell entry + 1
         int start = 0;
         for (int i = 0; i < tableSize; i++) {
             start += cellStart[i];
@@ -402,9 +409,13 @@ struct SpatialHashGrid {
         }
         cellStart[tableSize] = start;
 
+
         for (int i = 0; i < numberOfObjects; i++) {
-            int hash = getHashFromPosition(objects[i].position);
-            cellStart[hash]--;
+            int hash = getHashFromPosition(objects[i].position); // get hash to each starting index of cell in cellStart
+            cellStart[hash]--; // -1 because each each number points to cell entry + 1
+            
+            // use the starting index from cellStart as an index for cellEntries to set the starting index 
+            // for looping through the objects contained in each cell
             cellEntries[cellStart[hash]] = i;
         }
     }
@@ -420,6 +431,7 @@ struct SpatialHashGrid {
 
         querySize = 0;
 
+        // adding objects to be queried for use
         for (int x = startX; x <= endX; x++) {
             for (int y = startY; y <= endY; y++) {
                 for (int z = startZ; z <= endZ; z++) {
@@ -428,7 +440,7 @@ struct SpatialHashGrid {
                     int end = cellStart[hash + 1];
 
                     for (int i = start; i < end; i++) {
-                        queryIds[querySize] = cellEntries[i];
+                        queryIds[querySize] = cellEntries[i]; // cellEntries[i] returns the object index in the object list
                         querySize++;
                     }
                 }
@@ -436,7 +448,7 @@ struct SpatialHashGrid {
         }
     }
 };
-const float SpatialHashGrid::MAX_DISTANCE = 3.5f;
+const float SpatialHashGrid::MAX_DISTANCE = 2.0f;
 
 std::vector<BoundingVolumeObject> objects;
 
@@ -710,7 +722,7 @@ int main()
         simpleShader.use();
 
         // view/projection transformations
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
         glm::mat4 view = camera.GetViewMatrix();
         simpleShader.setMat4("projection", projection);
         simpleShader.setMat4("view", view);
