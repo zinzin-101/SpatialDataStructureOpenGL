@@ -52,7 +52,14 @@ float maxDistanceFromOrigin = 100.0f;
 float maxSpeedPerAxis = 5.0f;
 //const int NUMBER_OF_OBJECTS = 200;
 const int NUMBER_OF_OBJECTS = 5000;
-bool useSpatialHashGrid = true;
+
+enum Algorithm {
+    SPATIAL_HASH_GRID,
+    BVH,
+    BRUTE_FORCE
+};
+
+Algorithm currentAlgorithm = SPATIAL_HASH_GRID;
 
 struct DOP8 {
     static const glm::vec3 axes[4];
@@ -450,6 +457,230 @@ struct SpatialHashGrid {
 };
 const float SpatialHashGrid::MAX_DISTANCE = 2.0f;
 
+struct MortonCode {
+    static unsigned int expandBits(unsigned int bits) {
+        bits = (bits * 0x00010001) & 0xFF0000FF;
+        bits = (bits * 0x00000101) & 0x0F00F00F;
+        bits = (bits * 0x00000011) & 0xC30C30C3;
+        bits = (bits * 0x00000005) & 0x49249249;
+        return bits;
+    }
+
+    static unsigned int calculateMortonCode(glm::vec3 position) {
+        // normalize coordinates to [0, 1] based on world size
+
+        float maxWorldSize = maxDistanceFromOrigin * 2.0f;
+
+        glm::vec3 normalizedCoord = glm::vec3(
+            (position.x + maxWorldSize / 2.0f) / maxWorldSize,
+            (position.y + maxWorldSize / 2.0f) / maxWorldSize,
+            (position.z + maxWorldSize / 2.0f) / maxWorldSize 
+        );
+
+        normalizedCoord = glm::clamp(normalizedCoord, glm::vec3(0.0f), glm::vec3(1.0f)); // clamp within [0, 1]
+
+        // scale to range [0, 1023] for 10 bit encoding
+        unsigned int x = std::min((int)std::floor(normalizedCoord.x * 1023), 1023);
+        unsigned int y = std::min((int)std::floor(normalizedCoord.y * 1023), 1023);
+        unsigned int z = std::min((int)std::floor(normalizedCoord.z * 1023), 1023);
+
+        x = expandBits(x);
+        y = expandBits(y);
+        z = expandBits(z);
+
+        return x | (y << 1) | (z << 2);
+    }
+};
+
+struct AABB {
+    glm::vec3 min;
+    glm::vec3 max;
+    AABB() : min(0.0f), max(0.0f) {}
+    AABB(glm::vec3 min, glm::vec3 max) : min(min), max(max) {}
+    AABB(const BoundingVolumeObject& object) {
+        // axes with indices 0, 1, 2 are standard axes
+        // { 1.0f, 0.0f, 0.0f },
+        // { 0.0f, 1.0f, 0.0f },
+        // { 0.0f, 0.0f, 1.0f },
+
+        min = glm::vec3(
+            object.objectPlaneMin[0], 
+            object.objectPlaneMin[1], 
+            object.objectPlaneMin[2]
+        );
+        
+        max = glm::vec3(
+            object.objectPlaneMax[0],
+            object.objectPlaneMax[1],
+            object.objectPlaneMax[2]
+        );
+    }
+    bool checkAABB(const AABB& other) {
+        return(
+            this->min.x <= other.max.x && this->max.x >= other.min.x &&
+            this->min.y <= other.max.y && this->max.y >= other.min.y &&
+            this->min.z <= other.max.z && this->max.z >= other.min.z
+        );
+    }
+};
+
+bool checkAABB(const AABB& a, const AABB& b) {
+    return(
+        a.min.x <= b.max.x && a.max.x >= b.min.x &&
+        a.min.y <= b.max.y && a.max.y >= b.min.y &&
+        a.min.z <= b.max.z && a.max.z >= b.min.z
+    );
+}
+
+using NodeId = int;
+struct BVHNode {
+    //BVHNode* left;
+    //BVHNode* right;
+    NodeId leftId;
+    NodeId rightId;
+    int objectIdx;
+    AABB box;
+    //BVHNode(): left(nullptr), right(nullptr), objectIdx(-1) {}
+    //BVHNode(int objectIdx): left(nullptr), right(nullptr), objectIdx(objectIdx) {}
+    BVHNode() : leftId(-1), rightId(-1), objectIdx(-1) {}
+    BVHNode(int objectIdx) : leftId(-1), rightId(-1), objectIdx(objectIdx) {}
+    bool isLeaf() { return objectIdx >= 0; }
+};
+
+class NodePool {
+    private:
+    std::vector<BVHNode> nodes;
+    int count;
+    int maxSize;
+
+    public:
+    NodePool(int n) {
+        maxSize = 2 * n - 1;
+        nodes = std::vector<BVHNode>(maxSize);
+        count = 0;
+    }
+
+    int createNode() {
+        assert(count < maxSize && "Maximum pool capacity reached");
+
+        int index = count++;
+        nodes[index] = BVHNode();
+        return index;
+    }
+
+    int createNode(int objectIdx) {
+        assert(count < maxSize && "Maximum pool capacity reached");
+
+        int index = count++;
+        nodes[index] = BVHNode(objectIdx);
+        return index;
+    }
+
+    BVHNode* getNode(int index) {
+        if (index < 0 || index >= count) return nullptr;
+        return &nodes[index];
+    }
+
+    BVHNode* operator[](int index) {
+        return getNode(index);
+    }
+
+    void reset() {
+        count = 0;
+    }
+};
+static NodePool nodePool = NodePool(NUMBER_OF_OBJECTS);
+
+struct IdData {
+    int index;
+    unsigned int mortonCode;
+    IdData(): index(-1), mortonCode(0) {}
+    IdData(int index, unsigned int mortonCode) : index(index), mortonCode(mortonCode) {}
+};
+
+int getSplitIndex(int start, int end) {
+    return ((end - start) / 2) + start;
+}
+
+NodeId createLeaf(int objectIdx, AABB box) {
+    NodeId nodeId = nodePool.createNode(objectIdx);
+    BVHNode* node = nodePool[nodeId];
+
+    node->box = box;
+
+    return nodeId;
+}
+
+NodeId createNode() {
+    return nodePool.createNode();
+}
+
+NodeId createSubTree(const std::vector<BoundingVolumeObject>& objects, const std::vector<IdData>& list, int start, int end) {
+    if (start >= end) {
+        return createLeaf(list[start].index, objects[list[start].index]);
+    }
+
+    int mid = getSplitIndex(start, end);
+    NodeId nodeId = createNode();
+    NodeId leftId = createSubTree(objects, list, start, mid);
+    NodeId rightId = createSubTree(objects, list, mid + 1, end);
+
+    BVHNode* node = nodePool[nodeId];
+    node->leftId = leftId;
+    node->rightId = rightId;
+
+    node->box.min.x = std::min(nodePool[node->leftId]->box.min.x, nodePool[node->rightId]->box.min.x);
+    node->box.min.y = std::min(nodePool[node->leftId]->box.min.y, nodePool[node->rightId]->box.min.y);
+    node->box.min.z = std::min(nodePool[node->leftId]->box.min.z, nodePool[node->rightId]->box.min.z);
+
+    node->box.max.x = std::max(nodePool[node->leftId]->box.max.x, nodePool[node->rightId]->box.max.x);
+    node->box.max.y = std::max(nodePool[node->leftId]->box.max.y, nodePool[node->rightId]->box.max.y);
+    node->box.max.z = std::max(nodePool[node->leftId]->box.max.z, nodePool[node->rightId]->box.max.z);
+
+    return nodeId;
+}
+
+bool compareIdData(const IdData& a, const IdData& b) {
+    return a.mortonCode < b.mortonCode;
+}
+
+NodeId createTree(const std::vector<BoundingVolumeObject>& objects) {
+    int n = (int)objects.size();
+
+    if (n == 0) return -1;
+
+    std::vector<IdData> list(n);
+    for (int i = 0; i < n; i++) {
+        unsigned int mortonCode = MortonCode::calculateMortonCode(objects[i].position);
+        list[i] = IdData(i, mortonCode);
+    }
+
+    std::sort(list.begin(), list.end(), compareIdData);
+
+    return createSubTree(objects, list, 0, list.size() - 1);
+}
+
+void checkCollisionsBVH(int objectIdx, std::vector<BoundingVolumeObject>& objects, NodeId nodeId) {
+    BVHNode* node = nodePool[nodeId];
+    if (!checkAABB(AABB(objects[objectIdx]), node->box)) return;
+
+    if (node->isLeaf()) {
+        if (node->objectIdx != objectIdx) {
+            BoundingVolumeObject& obj1 = objects[node->objectIdx];
+            BoundingVolumeObject& obj2 = objects[objectIdx];
+            if (DOP26Test(obj1, obj2)) {
+                obj1.collided = true;
+                obj2.collided = true;
+            }
+        }
+
+        return;
+    }
+
+    checkCollisionsBVH(objectIdx, objects, node->leftId);
+    checkCollisionsBVH(objectIdx, objects, node->rightId);
+}
+
 std::vector<BoundingVolumeObject> objects;
 
 int PBRMesh::maxTextureNumber = 0;
@@ -649,6 +880,8 @@ int main()
 
     SpatialHashGrid spatialHashGrid(4.0f, (int)objects.size());
 
+    NodeId bvhRootNodeId = -1;
+
     while (!glfwWindowShouldClose(window))
     {
         // per-frame time logic
@@ -687,36 +920,49 @@ int main()
 
         // collision detection
         int numOfObjects = objects.size();
-        if (useSpatialHashGrid) {
-            spatialHashGrid.createHashGrid(objects);
-            for (int i = 0; i < numOfObjects; i++) {
-                spatialHashGrid.query(objects[i].position, SpatialHashGrid::MAX_DISTANCE);
-                for (int query = 0; query < spatialHashGrid.querySize; query++) {
-                    int j = spatialHashGrid.queryIds[query];
+        switch (currentAlgorithm) {
+            case SPATIAL_HASH_GRID:
+                spatialHashGrid.createHashGrid(objects);
+                for (int i = 0; i < numOfObjects; i++) {
+                    spatialHashGrid.query(objects[i].position, SpatialHashGrid::MAX_DISTANCE);
+                    for (int query = 0; query < spatialHashGrid.querySize; query++) {
+                        int j = spatialHashGrid.queryIds[query];
 
-                    BoundingVolumeObject& obj1 = objects[i];
-                    BoundingVolumeObject& obj2 = objects[j];
+                        BoundingVolumeObject& obj1 = objects[i];
+                        BoundingVolumeObject& obj2 = objects[j];
 
-                    if (i != j && DOP26Test(obj1, obj2)) {
-                        obj1.collided = true;
-                        obj2.collided = true;
+                        if (i != j && DOP26Test(obj1, obj2)) {
+                            obj1.collided = true;
+                            obj2.collided = true;
+                        }
                     }
                 }
-            }
-        }
-        else {
-            for (int i = 0; i < numOfObjects; i++) {
-                for (int j = i + 1; j < numOfObjects; j++) {
-                    BoundingVolumeObject& obj1 = objects[i];
-                    BoundingVolumeObject& obj2 = objects[j];
+                break;
 
-                    if (DOP26Test(obj1, obj2)) {
-                        obj1.collided = true;
-                        obj2.collided = true;
+            case BVH:
+                nodePool.reset();
+                bvhRootNodeId = createTree(objects);
+                for (int i = 0; i < numOfObjects; i++) {
+                    if (bvhRootNodeId == -1) break;
+                    checkCollisionsBVH(i, objects, bvhRootNodeId);
+                }
+                break;
+
+            case BRUTE_FORCE:
+                for (int i = 0; i < numOfObjects; i++) {
+                    for (int j = i + 1; j < numOfObjects; j++) {
+                        BoundingVolumeObject& obj1 = objects[i];
+                        BoundingVolumeObject& obj2 = objects[j];
+
+                        if (DOP26Test(obj1, obj2)) {
+                            obj1.collided = true;
+                            obj2.collided = true;
+                        }
                     }
                 }
-            }
+                break;
         }
+
 
         // rendering
         simpleShader.use();
@@ -754,7 +1000,22 @@ int main()
             fps = frameNum / timeElapsed;
             timeElapsed = 0.0f;
             frameNum = 0;
-            std::cout << "FPS: " << fps << " Spatial Hash Grid: " << (useSpatialHashGrid ? "ON" : "OFF") << std::endl;
+            std::string algorithm;
+            switch (currentAlgorithm) {
+                case SPATIAL_HASH_GRID:
+                    algorithm = "Spatial Hash Grid";
+                    break;
+
+                case BVH:
+                    algorithm = "BVH";
+                    break;
+
+                case BRUTE_FORCE:
+                    algorithm = "Brute Force";
+                    break;
+            }
+
+            std::cout << "FPS: " << fps << " Method: " << algorithm << std::endl;
         }
 
         glfwSwapBuffers(window);
@@ -827,7 +1088,8 @@ void processInput(GLFWwindow* window)
     }
 
     if (getKeyDown(window, GLFW_KEY_H)) {
-        useSpatialHashGrid = !useSpatialHashGrid;
+        //useSpatialHashGrid = !useSpatialHashGrid;
+        currentAlgorithm = (Algorithm)((currentAlgorithm + 1) % 3);
     }
 }
 
