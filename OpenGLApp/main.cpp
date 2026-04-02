@@ -51,7 +51,7 @@ bool canUpdatePosition = true;
 float maxDistanceFromOrigin = 100.0f;
 float maxSpeedPerAxis = 5.0f;
 //const int NUMBER_OF_OBJECTS = 200;
-const int NUMBER_OF_OBJECTS = 2000;
+const int NUMBER_OF_OBJECTS = 5000;
 bool useSpatialHashGrid = true;
 
 struct DOP8 {
