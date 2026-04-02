@@ -693,22 +693,14 @@ unsigned int PBRMesh::defaultAO = 0;
 
 int main()
 {
-    // glfw: initialize and configure
-    // ------------------------------
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-#ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
-
-    // glfw window creation
-    // --------------------
     GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
     GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "KDOP_BoundingVolume", NULL, NULL);
-    //GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", primaryMonitor, NULL);
+    //GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "KDOP_BoundingVolume", primaryMonitor, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -720,20 +712,16 @@ int main()
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
 
-    // tell GLFW to capture our mouse
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     glfwSwapInterval(0);
 
-    // glad: load all OpenGL function pointers
-    // ---------------------------------------
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
 
-    // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
     stbi_set_flip_vertically_on_load(false);
 
     srand(time(NULL));
@@ -746,20 +734,6 @@ int main()
     simpleShader.setInt("texture_PBR_metallic1", 2);
     simpleShader.setInt("texture_PBR_roughness1", 3);
     simpleShader.setInt("texture_PBR_ambient_occlusion1", 4);
-
-    // load models
-    // -----------
-    //Model ourModel(FileSystem::getPath("resources/objects/mask/source/mask.fbx"));
-    //PBRModel ourModel(FileSystem::getPath("resources/objects/wooden_chest/scene.gltf"));
-    //PBRModel chisaModel(FileSystem::getPath("resources/objects/chisa/scene.gltf"));
-    //PBRModel swordModel(FileSystem::getPath("resources/objects/sword/scene.gltf"));
-    //Model ourModel(FileSystem::getPath("resources/objects/wheel/wheel.fbx"));
-
-    //PBRModel basketballCourt(FileSystem::getPath("resources/objects/basketball_court/scene.gltf"));
-    //glm::mat4 basketballCourtModelMat(1.0f);
-    //basketballCourtModelMat = glm::translate(basketballCourtModelMat, glm::vec3(0.0f, 0.0f, 0.0f));
-    //basketballCourtModelMat = glm::scale(basketballCourtModelMat, glm::vec3(3.0f));
-    //basketballCourtModelMat = glm::rotate(basketballCourtModelMat, glm::radians(-90.0f), glm::vec3(1, 0, 0));
 
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
@@ -797,7 +771,7 @@ int main()
     PBRModel swordModel(FileSystem::getPath("resources/objects/sword/scene.gltf"));
     PBRModel scytheModel(FileSystem::getPath("resources/objects/scythe/scene.gltf"));
     PBRModel shotgunModel(FileSystem::getPath("resources/objects/shotgun/scene.gltf"));
-    PBRModel chisaModel(FileSystem::getPath("resources/objects/chisa/scene.gltf"));
+    //PBRModel chisaModel(FileSystem::getPath("resources/objects/chisa/scene.gltf"));
 
     glm::mat4 ballModelMat(1.0f);
     ballModelMat = glm::translate(ballModelMat, glm::vec3(0.0f, 0.0f, 0.0f));
@@ -820,15 +794,11 @@ int main()
     glm::mat4 chisaModelMat(1.0f);
     chisaModelMat = glm::scale(ballModelMat, glm::vec3(2.5f));
 
-    //std::cout << glm::to_string(ballModelMat) << std::endl;
-
-    //DOP8 ballDOP = DOP8(&ballModel, ballModelMat);
-
     DOP26 ballDOP = DOP26(&ballModel, ballModelMat);
     DOP26 swordDOP = DOP26(&swordModel, swordModelMat);
     DOP26 shotgunDOP = DOP26(&shotgunModel, shotgunModelMat);
     DOP26 scytheDOP = DOP26(&scytheModel, scytheModelMat);
-    DOP26 chisaDOP = DOP26(&chisaModel, chisaModelMat);
+    //DOP26 chisaDOP = DOP26(&chisaModel, chisaModelMat);
 
     DOP26* dops[4] = {
         &ballDOP,
@@ -846,11 +816,6 @@ int main()
         //&chisaModel
     };
 
-    //DOP26 chisaDOP = DOP26(&chisaModel, chisaModelMat);
-
-    //objects.emplace_back(BoundingVolumeObject(&ballModel, &ballDOP));
-    //objects.emplace_back(BoundingVolumeObject(&chisaModel, &chisaDOP));
-
     for (int i = 0; i < NUMBER_OF_OBJECTS; i++) {
         float distanceFromOrigin = 0.0f;
         glm::vec3 position = glm::vec3(0.0f);
@@ -861,7 +826,7 @@ int main()
                 2.0f * maxDistanceFromOrigin * randFloat() - maxDistanceFromOrigin
             );
             distanceFromOrigin = glm::length(position - glm::vec3(0.0f));
-        } while (distanceFromOrigin < maxDistanceFromOrigin);
+        } while (distanceFromOrigin > maxDistanceFromOrigin);
 
         BoundingVolumeObject object = BoundingVolumeObject(models[i % 4], dops[i % 4]);
         object.position = position;
@@ -983,11 +948,6 @@ int main()
             renderPlanes(objects, simpleShader);
         }
 
-        //simpleShader.setMat4("model", basketballCourtModelMat);
-        //simpleShader.setMat4("normalMatrix", glm::transpose(glm::inverse(glm::mat3(basketballCourtModelMat))));
-        //simpleShader.setVec3("color", glm::vec3(1.0f));
-        //basketballCourt.Draw(simpleShader);
-
         // Show Average FPS
         static unsigned int frameNum = 0;
         static double timeElapsed = 0.0;
@@ -1073,12 +1033,6 @@ void processInput(GLFWwindow* window)
     else 
         camera.MovementSpeed = 4.0f;
 
-    //if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
-    //    objects[0].position += camera.Right * 5.0f * deltaTime;
-
-    //if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
-    //    objects[0].position -= camera.Right * 5.0f * deltaTime;
-
     if (getKeyDown(window, GLFW_KEY_SPACE)) {
         showVisualization = !showVisualization;
     }
@@ -1088,7 +1042,6 @@ void processInput(GLFWwindow* window)
     }
 
     if (getKeyDown(window, GLFW_KEY_H)) {
-        //useSpatialHashGrid = !useSpatialHashGrid;
         currentAlgorithm = (Algorithm)((currentAlgorithm + 1) % 3);
     }
 }
