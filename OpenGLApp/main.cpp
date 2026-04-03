@@ -336,7 +336,7 @@ struct TransparencyComparator {
 void renderPlanes(std::vector<BoundingVolumeObject>& volumeObjects, Shader& shader) {
     std::priority_queue<TransparencyRenderingObject, std::vector<TransparencyRenderingObject>, TransparencyComparator> transparencyRenderQueue;
     for (BoundingVolumeObject& object : volumeObjects) {
-        transparencyRenderQueue.emplace(TransparencyRenderingObject(&object, glm::length(object.position - camera.Position)));
+        transparencyRenderQueue.emplace(&object, glm::length(object.position - camera.Position));
     }
 
     glEnable(GL_BLEND);
@@ -841,7 +841,7 @@ int main()
             2.0f * maxSpeedPerAxis * randFloat() - maxSpeedPerAxis,
             2.0f * maxSpeedPerAxis * randFloat() - maxSpeedPerAxis
         );
-        objects.emplace_back(object);
+        objects.push_back(object);
     }
 
     // draw in wireframe
