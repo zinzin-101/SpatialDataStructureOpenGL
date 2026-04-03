@@ -7,11 +7,11 @@ https://github.com/user-attachments/assets/2141eeed-2842-45b2-9d62-a8106b3642ba
 
 https://github.com/user-attachments/assets/6e08e8b2-5a1c-443a-88f4-23952a7d3531
 
-## broad phase detection using Spatial Hash Grid
+## broad phase collision detection using Spatial Hash Grid
 
 https://github.com/user-attachments/assets/70ae72b4-64f2-46fc-aa3c-b61277499739
 
-## broad phase detection using BVH
+## broad phase collision detection using BVH
 
 https://github.com/user-attachments/assets/dd758d05-ffb8-44c9-b7b1-f849f0af94cf
 
