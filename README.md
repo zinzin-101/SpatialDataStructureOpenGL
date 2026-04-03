@@ -1,5 +1,5 @@
 # K-DOP Bounding Volume Collision Detection
-26-DOP implementation with 3 broad phase collision detection methods
+26-DOP implementation with 2 different broad phase collision detection methods using Spatial Hash Grid and Bounding Volume Hierarchy (BVH)
 
 https://github.com/user-attachments/assets/2141eeed-2842-45b2-9d62-a8106b3642ba
 
