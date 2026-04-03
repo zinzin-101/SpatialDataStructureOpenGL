@@ -48,9 +48,10 @@ float lastFrame = 0.0f;
 std::map<unsigned int, bool> keyDownMap;
 bool showVisualization = false;
 bool canUpdatePosition = true;
+//float maxDistanceFromOrigin = 50.0f;
 float maxDistanceFromOrigin = 100.0f;
 float maxSpeedPerAxis = 5.0f;
-//const int NUMBER_OF_OBJECTS = 200;
+//const int NUMBER_OF_OBJECTS = 250;
 const int NUMBER_OF_OBJECTS = 5000;
 
 enum Algorithm {
@@ -547,16 +548,20 @@ struct BVHNode {
     bool isLeaf() { return objectIdx >= 0; }
 };
 
+template <int N>
 class NodePool {
     private:
-    std::vector<BVHNode> nodes;
+    //std::vector<BVHNode> nodes;
+    BVHNode nodes[2 * N - 1];
     int count;
     int maxSize;
 
     public:
-    NodePool(int n) {
-        maxSize = 2 * n - 1;
-        nodes = std::vector<BVHNode>(maxSize);
+    //NodePool(int n) {
+    NodePool() {
+        //maxSize = 2 * n - 1;
+        //nodes = std::vector<BVHNode>(maxSize);
+        maxSize = N;
         count = 0;
     }
 
@@ -589,7 +594,8 @@ class NodePool {
         count = 0;
     }
 };
-static NodePool nodePool = NodePool(NUMBER_OF_OBJECTS);
+//static NodePool nodePool = NodePool(NUMBER_OF_OBJECTS);
+static NodePool nodePool = NodePool<NUMBER_OF_OBJECTS>();
 
 struct IdData {
     int index;
