@@ -1,23 +1,23 @@
 # K-DOP Bounding Volume Collision Detection
 26-DOP implementation with 2 different broad phase collision detection methods using Spatial Hash Grid and Bounding Volume Hierarchy (BVH)
 
-https://github.com/user-attachments/assets/2141eeed-2842-45b2-9d62-a8106b3642ba
+https://github.com/user-attachments/assets/1634d7fa-ffc5-4a8b-b4b0-e05f69006294
 
 ## 26-DOP planes visualization
 
-https://github.com/user-attachments/assets/6e08e8b2-5a1c-443a-88f4-23952a7d3531
+https://github.com/user-attachments/assets/27258505-7592-431e-833b-adc5de629b98
 
 ## broad phase collision detection using Spatial Hash Grid
 
-https://github.com/user-attachments/assets/70ae72b4-64f2-46fc-aa3c-b61277499739
+https://github.com/user-attachments/assets/7b5138dd-52b5-4bcb-ae1c-4a8a2f43ea16
 
 ## broad phase collision detection using BVH
 
-https://github.com/user-attachments/assets/dd758d05-ffb8-44c9-b7b1-f849f0af94cf
+https://github.com/user-attachments/assets/139c9fa9-de14-46d0-b51a-c0adbf0e5738
 
 ## using Brute Force
 
-https://github.com/user-attachments/assets/1a626908-8110-4856-8a7a-4023be8d6fa7
+https://github.com/user-attachments/assets/12f99c67-8bbb-474c-b9ae-6b97dcb53c5b
 
 ## Model Credits
 - [Lever action shotgun - Fortnite (PBR)](https://sketchfab.com/3d-models/lever-action-shotgun-fortnite-pbr-6af7d2da42724bfd94a6196a2ee1bcc9) by [Wicked_Vixx](https://sketchfab.com/tylukex) licensed under [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/) <br />
